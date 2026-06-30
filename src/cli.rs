@@ -9,6 +9,8 @@ use tiny_skia::Color;
 use crate::config::Config;
 use crate::renderer::{Renderer, render_options::{RendererOptions, RenderInput, StopCondition}, vgm};
 
+use crate::renderer::lsdj;
+
 fn model_value_parser(s: &str) -> Result<Model, String> {
     match s.replace("-", "").to_lowercase().as_str() {
         "dmg" | "dmgb" => Ok(Model::DMG(Revision::RevB)),
@@ -271,7 +273,18 @@ pub fn run() {
     pb.set_style(pb_style_initial);
 
     renderer.start_encoding().unwrap();
+
+    while !renderer.started() {
+        renderer.step_game_boys(true);
+    }
+    renderer.step_game_boys(false);
+    renderer.clear_audio_buffer();
+
     loop {
+        if renderer.ended() {
+            renderer.clear_audio_buffer();
+        }
+
         if !(renderer.step().unwrap()) {
             break;
         }

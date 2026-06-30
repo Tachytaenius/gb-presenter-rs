@@ -87,6 +87,18 @@ impl Renderer {
         })
     }
 
+    pub fn clear_audio_buffer(&mut self) {
+        self.gb.get_audio_samples(None).unwrap();
+    }
+ 
+    pub fn ended(&mut self) -> bool {
+        return self.end_detector.lock().unwrap().detected();
+    }
+
+    pub fn started(&mut self) -> bool {
+        return self.gb.oam_info().0.len() > 0;
+    }
+
     pub fn is_2x(&self) -> bool {
         match &self.options.input {
             RenderInput::LSDj2x(_, _, _, _) => true,
@@ -257,25 +269,40 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn step(&mut self) -> Result<bool> {
-        if self.is_2x() {
-            self.gb.run_frame_sync(&mut self.gb_2x);
+    pub fn step_game_boys(&mut self, short: bool) {
+        let let_go_frames = 10;
 
-            if self.frame_timestamp < 0.5 && matches!(&self.options.input, RenderInput::LSDj2x(_, _, _, _)) {
+        if self.is_2x() {
+            if short {
+                self.gb.run();
+                self.gb_2x.run();
+            } else {
+                self.gb.run_frame_sync(&mut self.gb_2x);
+            }
+
+            if self.cur_frame < let_go_frames && matches!(&self.options.input, RenderInput::LSDj2x(_, _, _, _)) {
                 self.gb.set_joypad_button(JoypadButton::Start, true);
             } else {
                 self.gb.joypad_release_all();
             }
             self.gb_2x.joypad_release_all();
         } else {
-            self.gb.run_frame();
+            if short {
+                self.gb.run();
+            } else {
+                self.gb.run_frame();
+            }
 
-            if self.frame_timestamp < 0.5 && matches!(&self.options.input, RenderInput::LSDj(_, _)) {
+            if self.cur_frame < let_go_frames && matches!(&self.options.input, RenderInput::LSDj(_, _)) {
                 self.gb.set_joypad_button(JoypadButton::Start, true);
             } else {
                 self.gb.joypad_release_all();
             }
         }
+    }
+
+    pub fn step(&mut self) -> Result<bool> {
+        self.step_game_boys(false);
 
         {
             let mut viz = self.viz.lock().unwrap();
