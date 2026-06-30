@@ -214,7 +214,7 @@ impl VideoBuilder {
 
         context.set_rate(options.sample_rate);
         context.set_format(output_format);
-        context.set_channels(options.audio_channels);
+        // context.set_channels(options.audio_channels); // Get it compiling!!!
         context.set_channel_layout(channel_layout);
         context.set_time_base(options.audio_time_base);
         context.set_bit_rate(384_000);  // TODO make configurable
