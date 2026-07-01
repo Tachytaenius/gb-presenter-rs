@@ -41,6 +41,7 @@ pub struct Renderer {
     end_detector: Arc<Mutex<lsdj::EndDetector>>,
     vgm_2x: bool,
     vb: VideoBuilder,
+    start_delta_2x: i64,
 
     cur_frame: u64,
     encode_start: Instant,
@@ -74,6 +75,7 @@ impl Renderer {
             viz,
             end_detector,
             vgm_2x: false,
+            start_delta_2x: 0,
             vb,
             cur_frame: 0,
             encode_start: Instant::now(),
@@ -89,6 +91,9 @@ impl Renderer {
 
     pub fn clear_audio_buffer(&mut self) {
         self.gb.get_audio_samples(None).unwrap();
+        if self.is_2x() {
+            self.gb_2x.get_audio_samples(None).unwrap();
+        }
     }
  
     pub fn ended(&mut self) -> bool {
@@ -96,7 +101,14 @@ impl Renderer {
     }
 
     pub fn started(&mut self) -> bool {
-        return self.gb.oam_info().0.len() > 0;
+        if self.gb.oam_info().0.len() == 0 {
+            return false;
+        }
+        if self.is_2x() {
+            return self.gb_2x.oam_info().0.len() > 0
+        } else {
+            return true;
+        }
     }
 
     pub fn is_2x(&self) -> bool {
@@ -274,8 +286,11 @@ impl Renderer {
 
         if self.is_2x() {
             if short {
-                self.gb.run();
-                self.gb_2x.run();
+                if self.start_delta_2x >= 0 {
+                    self.start_delta_2x -= self.gb.run() as i64;
+                } else {
+                    self.start_delta_2x += self.gb_2x.run() as i64;
+                }
             } else {
                 self.gb.run_frame_sync(&mut self.gb_2x);
             }
